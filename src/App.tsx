@@ -1,3 +1,4 @@
+import ScheduledCountdown from "./components/ScheduledCountdown";
 import DeletionConfirmation from "./components/DeletionConfirmation";
 import ScheduleWorkspace from "./components/schedules/ScheduleWorkspace";
 import SchedulePreview from "./components/schedules/SchedulePreview";
@@ -55,6 +56,7 @@ type Completion = { phase: "save-error" | SessionPhase; title: string; body: str
 const isTauri = () => "__TAURI_INTERNALS__" in window;
 const appWindow = isTauri() ? getCurrentWindow() : null;
 const hudDimensions = { small: [280, 86], medium: [340, 286], large: [420, 400] } as const;
+const compactHudDimensions = [360, 86] as const;
 const reliableNow = () => isTauri() ? invoke<number>("monotonic_millis") : Promise.resolve(performance.now());
 
 function focusAudioPlayError(error: unknown) {
@@ -284,7 +286,7 @@ export default function App() {
       if (snapshotRef.current) saveSessionSnapshot(snapshotRef.current);
       await invoke("quit_app");
     } catch (error) {
-      setDatabaseError(`Unable to close DeepHUD: ${String(error)}`);
+      setDatabaseError(`Unable to close Elon Mode: ${String(error)}`);
     }
   };
 
@@ -915,7 +917,7 @@ export default function App() {
     let cancelled = false;
     const resize = async () => {
       const compact = settings.displayMode === "compact";
-      const hudSize = completion && activePlan?.queueItemId ? [420, 500] as const : showBreakActivities ? [420, 500] as const : (completion || reminderOpen) && (compact || settings.size === "small") ? hudDimensions.medium : compact ? hudDimensions.small : hudDimensions[settings.size];
+      const hudSize = completion && activePlan?.queueItemId ? [420, 500] as const : showBreakActivities ? [420, 500] as const : (completion || reminderOpen) && (compact || settings.size === "small") ? hudDimensions.medium : compact ? compactHudDimensions : hudDimensions[settings.size];
       const desired = recovery ? [420, 420] as const : view === "hud"
         ? hudSize
         : view === "launcher"
@@ -1290,6 +1292,13 @@ export default function App() {
   const showTaskLabel = activePlan && (!activePlan.project.trim() || Boolean(activePlan.task.trim() && activePlan.task.trim().toLocaleLowerCase() !== activePlan.project.trim().toLocaleLowerCase()));
   const statusLabel = activePlan?.phase === "break" && state.status === "running" ? "RECHARGING" : state.status === "running" ? "WORKING" : state.status === "paused" ? "PAUSED" : state.status === "finished" ? "COMPLETE" : "READY";
 
+  const timerContent = <>{activePlan ? <div className="active-intent">
+          {showTaskLabel ? <ScrollingName className="active-intent__project" text={activePlan.project.trim() || "FOCUS SESSION"} /> : <div className="session-name-row"><ScrollingName className="active-intent__project" text={activePlan.project.trim()} />{captureButton}</div>}
+          {showTaskLabel && <div className="session-name-row"><ScrollingName className="active-intent__task" text={displayName.trim() ? displayName : "Untitled task"} />{captureButton}</div>}
+        </div> : <div className="session-field session-name-row"><label><span className="sr-only">Session name</span><input value={sessionName} onChange={(event) => setSessionName(event.target.value)} maxLength={80} placeholder="What are you focusing on?" /></label>{captureButton}</div>}
+        <Timer state={state} sessionName={displayName} sessionSummary={sessionProgress(activePlan, state, progressRecords)} endingSoon={isFocusReminderDue(state, activePlan?.phase, settings.fiveMinuteWarning)} />
+  </>;
+
   const configuredSize = settings.displayMode === "compact" ? "small" : settings.size;
   const effectiveSize = completion && activePlan?.queueItemId ? "large" : showBreakActivities ? "large" : (completion || reminderOpen) && configuredSize === "small" ? "medium" : configuredSize;
   return <main className={`app-shell size-${effectiveSize} display-${settings.displayMode}${showBreakActivities ? " break-activity-shell" : ""}`} style={shellStyle}>
@@ -1304,19 +1313,25 @@ export default function App() {
           {activePlan?.phase === "break" && thoughtCount > 0 ? <button type="button" className="status-label capture-review-link" title={`${thoughtCount} thoughts saved · Review`} onClick={() => { setHudPopover(null); setView("saved"); }}>{thoughtCount} saved · Review</button> : <span className={`status-label status-label--${state.status}`}>{statusLabel}</span>}
           <button
             className="hud__minimize"
+            onClick={() => {
+              if (settings.displayMode === "compact") {
+                expandHud();
+              } else {
+                changeSettings({ displayMode: "compact", position: "top-center" });
+              }
+            }}
             type="button"
-            title="Switch to compact HUD"
-            aria-label="Switch to compact HUD"
+            title={settings.displayMode === "compact" ? "Expand panel" : "Collapse panel"}
+            aria-label={settings.displayMode === "compact" ? "Expand panel" : "Collapse panel"}
             onMouseDown={(event) => event.stopPropagation()}
-            onClick={() => changeSettings({ displayMode: "compact" })}
           >
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" /></svg>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d={settings.displayMode === "compact" ? "M4 8h8M8 4v8" : "M4 8h8"} /></svg>
           </button>
           <button
             className="hud__close"
             type="button"
-            title="Quit DeepHUD"
-            aria-label="Quit DeepHUD"
+            title="Quit Elon Mode"
+            aria-label="Quit Elon Mode"
             disabled={!appWindow}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={() => void quitApp()}
@@ -1338,11 +1353,9 @@ export default function App() {
             setHudPopover(null);
           }}
         /> : <>
-        {activePlan ? <div className="active-intent">
-          {showTaskLabel ? <ScrollingName className="active-intent__project" text={activePlan.project.trim() || "FOCUS SESSION"} /> : <div className="session-name-row"><ScrollingName className="active-intent__project" text={activePlan.project.trim()} />{captureButton}</div>}
-          {showTaskLabel && <div className="session-name-row"><ScrollingName className="active-intent__task" text={displayName.trim() ? displayName : "Untitled task"} />{captureButton}</div>}
-        </div> : <div className="session-field session-name-row"><label><span className="sr-only">Session name</span><input value={sessionName} onChange={(event) => setSessionName(event.target.value)} maxLength={80} placeholder="What are you focusing on?" /></label>{captureButton}</div>}
-        <Timer state={state} sessionName={displayName} sessionSummary={sessionProgress(activePlan, state, progressRecords)} endingSoon={isFocusReminderDue(state, activePlan?.phase, settings.fiveMinuteWarning)} />
+        {state.status === "idle" && !activePlan
+          ? <ScheduledCountdown tasks={queueItems} onExpand={settings.displayMode === "compact" ? expandHud : undefined}>{timerContent}</ScheduledCountdown>
+          : timerContent}
         {!activePlan && <div className="presets" aria-label="Quick start presets">{[25, 50, 90, 120].map((minutes) => <button key={minutes} onClick={() => startPlan({ kind: "deep-work", workMinutes: minutes, breakMinutes: settings.pomodoroBreakMinutes, phase: "work", project: "", task: sessionName, startedAt: new Date().toISOString(), cycle: 1 })}>{minutes === 120 ? "2 hr" : `${minutes} min`}</button>)}<button onClick={() => setCustomPresetOpen((open) => !open)}>Custom</button></div>}
         {customPresetOpen && !activePlan && <form className="custom-preset" onSubmit={(event) => { event.preventDefault(); startPlan({ kind: "deep-work", workMinutes: Math.max(1, customMinutes), breakMinutes: settings.pomodoroBreakMinutes, phase: "work", project: "", task: sessionName, startedAt: new Date().toISOString(), cycle: 1 }); setCustomPresetOpen(false); }}><input aria-label="Custom duration in minutes" type="number" min="1" max="1440" value={customMinutes} onChange={(event) => setCustomMinutes(Number(event.target.value))} autoFocus /><span>min</span><button type="submit">Start</button></form>}
         </>}
@@ -1395,8 +1408,8 @@ export default function App() {
         onNext={async () => { const item = nextQueueItem(queueItems, activePlan.queueItemId, localDay()); if (item) await startQueueTask(item, true); }}
         onBreak={() => startPhase("break")} onClose={closeCompletedSession}
       /> : completion && <div className="completion-backdrop"><div className="completion-card"><span>{completion.phase === "save-error" ? "!" : completion.phase === "break" ? "☕" : "✓"}</span><h2>{completion.title}</h2><p>{completion.body}</p><div>{completion.phase === "work" && <button className="primary-action" onClick={() => startPhase("break")}>Start {activePlan && nextBreak(activePlan).kind === "long" ? "long " : ""}break</button>}{completion.phase === "break" && <button className="primary-action" onClick={() => startPhase("work")}>Start focus</button>}{completion.phase === "save-error" && <button className="primary-action" onClick={() => { completionKeyRef.current = ""; setCompletion(null); setActivePlan((plan) => plan ? { ...plan } : null); }}>Retry save</button>}{(completion.phase === "work" || completion.phase === "break") && <button onClick={() => void closeCompletedSession().catch(() => {})}>End session</button>}</div></div></div>)}
-      {deletingRecording && <DeletionConfirmation title="Delete this recording from DeepHUD?" confirmLabel="Delete recording" errorMessage="Could not delete this recording."
-        description={<><p className="deletion-target">{deletingRecording.name}</p><p>This permanently deletes DeepHUD’s imported copy from your audio library. If selected, focus audio switches to Silence. Your original file is kept and can be imported again.</p></>}
+      {deletingRecording && <DeletionConfirmation title="Delete this recording from Elon Mode?" confirmLabel="Delete recording" errorMessage="Could not delete this recording."
+        description={<><p className="deletion-target">{deletingRecording.name}</p><p>This permanently deletes Elon Mode’s imported copy from your audio library. If selected, focus audio switches to Silence. Your original file is kept and can be imported again.</p></>}
         onCancel={() => setDeletingRecording(null)} onConfirm={() => removeActiveRecording(deletingRecording)} />}
       {statusNotice && <StatusToast key={statusNotice.id} text={statusNotice.text} onDismiss={dismissStatus} />}
       {clickThroughNotice && <div className="notice" role="status">Click-through on · {clickThroughHint(settings.shortcuts.clickThrough, clickThroughShortcutAvailable)}</div>}
@@ -1413,7 +1426,8 @@ async function positionWindow(position: Exclude<HudPosition, "custom">) {
   const windowSize = (await appWindow.outerSize()).toLogical(monitor.scaleFactor);
   const margin = 20;
   const x = position.endsWith("left") ? workPosition.x + margin : position.endsWith("right") ? workPosition.x + workSize.width - windowSize.width - margin : workPosition.x + (workSize.width - windowSize.width) / 2;
-  const y = position.startsWith("top") ? workPosition.y + margin : workPosition.y + workSize.height - windowSize.height - margin;
+  const topGap = position === "top-center" ? 4 : margin;
+  const y = position.startsWith("top") ? workPosition.y + topGap : workPosition.y + workSize.height - windowSize.height - margin;
   await appWindow.setPosition(new LogicalPosition(Math.round(x), Math.round(y)));
 }
 

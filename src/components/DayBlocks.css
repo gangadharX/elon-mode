@@ -1,0 +1,12 @@
+.day-plan { margin: 16px 0; }
+.day-plan h2 { font-size: 13px; margin-bottom: 10px; }
+.day-plan__layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(150px, 2fr); gap: 12px; }
+.day-plan__scroll { height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+.day-plan__grid { position: relative; }
+.day-plan__hour { display: block; width: 100%; padding: 4px 8px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; font-size: 11px; cursor: pointer; }
+.day-plan__hour:hover:not(:disabled) { background: var(--button); }
+.day-plan__block { position: absolute; left: 54px; right: 4px; overflow: hidden; padding: 0 6px; border: 0; border-left: 3px solid var(--accent); border-radius: 4px; background: rgba(var(--accent-rgb), .22); color: var(--text); text-align: left; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; cursor: pointer; }
+.day-plan__block[aria-pressed="true"] { background: var(--accent); color: #102018; }
+.day-plan__block span { opacity: .8; }
+.day-plan__now { position: absolute; left: 46px; right: 0; height: 2px; background: #ff4d55; pointer-events: none; }
+@media (max-width: 440px) { .day-plan__layout { grid-template-columns: 1fr; } }

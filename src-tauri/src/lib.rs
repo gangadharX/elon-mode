@@ -155,6 +155,12 @@ fn database_migrations() -> Vec<Migration> {
             kind: MigrationKind::Up,
         },
         Migration { version: 6, description: "recurring_focus_schedules", sql: schedules::MIGRATION, kind: MigrationKind::Up },
+        Migration {
+            version: 7,
+            description: "task_requirements",
+            sql: "ALTER TABLE daily_queue_items ADD COLUMN requirements TEXT NOT NULL DEFAULT '';",
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -216,7 +222,7 @@ pub fn run() {
                 allow_compact_linux_window(&window)?;
             }
 
-            let show = MenuItem::with_id(app, "show", "Show DeepHUD", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Show Elon Mode", true, None::<&str>)?;
             let disable_click_through = MenuItem::with_id(
                 app,
                 "disable-click-through",
@@ -249,7 +255,7 @@ pub fn run() {
 
             let mut tray = TrayIconBuilder::with_id("main")
                 .menu(&menu)
-                .tooltip("DeepHUD")
+                .tooltip("Elon Mode")
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "show" => show_hud(app),
                     "disable-click-through" => {
@@ -281,5 +287,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running DeepHUD");
+        .expect("error while running Elon Mode");
 }

@@ -79,7 +79,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, .accent:focus-w
 .hud__minimize:hover, .hud__close:hover { border-color: var(--line); background: var(--button-hover); color: var(--text); transform: translateY(-1px); }
 .hud__minimize:active, .hud__close:active { transform: translateY(0) scale(.94); }
 .hud__minimize svg, .hud__close svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
-.size-medium.display-full .hud__minimize, .size-medium.display-full .hud__close { display: grid; }
+.hud__minimize, .size-medium.display-full .hud__close { display: grid; }
 .hud__close:hover:not(:disabled) { border-color: rgba(235, 80, 80, .4); background: rgba(235, 80, 80, .18); color: #eb5050; }
 .hud__close:disabled { opacity: .4; cursor: default; transform: none; }
 
@@ -637,3 +637,55 @@ kbd { min-width: 23px; padding: 4px 5px; border: 1px solid var(--line); border-b
 .edit-focused-time legend { margin-bottom: 5px; color: var(--muted); font-size: 8px; }
 .edit-focused-time > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .edit-actions button:disabled { opacity: .5; cursor: not-allowed; }
+
+.scheduled-countdown { min-width: 0; }
+.scheduled-countdown__task { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text); }
+
+.display-compact.size-small .hud { border-radius: 0 0 18px 18px; }
+.display-compact.size-small .controls .control-queue { display: grid; }
+.display-compact.size-small .scheduled-countdown {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+}
+.display-compact.size-small .scheduled-countdown .timer__clock {
+  font-size: 18px;
+  letter-spacing: -.5px;
+}
+.scheduled-countdown__progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line);
+}
+.scheduled-countdown__progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.scheduled-countdown--button {
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.scheduled-countdown--button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .display-compact.size-small .scheduled-countdown {
+    animation: notch-content-in 140ms ease-out;
+  }
+}
+@keyframes notch-content-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}

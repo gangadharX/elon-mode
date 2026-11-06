@@ -6,6 +6,7 @@ export interface DailyQueueItem {
   id: string;
   scheduledDate: string;
   title: string;
+  requirements?: string;
   project: string;
   position: number;
   estimatedSessions: number;
@@ -28,6 +29,7 @@ export function validateQueue(value: unknown): DailyQueueItem[] {
   return value.map((item) => {
     if (!item || typeof item !== "object" || !validateQueueId(item.id) || ids.has(item.id)
       || typeof item.title !== "string" || !item.title.trim() || item.title.length > 500 || item.title.includes("\0")
+      || (item.requirements !== undefined && (typeof item.requirements !== "string" || item.requirements.length > 500 || item.requirements.includes("\0")))
       || typeof item.project !== "string" || item.project.length > 200 || item.project.includes("\0")
       || typeof item.scheduledDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.scheduledDate)
       || !Number.isFinite(Date.parse(item.scheduledDate)) || new Date(item.scheduledDate).toISOString().slice(0, 10) !== item.scheduledDate
@@ -37,7 +39,7 @@ export function validateQueue(value: unknown): DailyQueueItem[] {
       || !["deep-work", "pomodoro"].includes(item.kind)
       || (item.completedAt !== null && (typeof item.completedAt !== "string" || item.completedAt.length > 40 || !Number.isFinite(Date.parse(item.completedAt))))) throw new Error("Invalid task queue item");
     ids.add(item.id);
-    return { id: item.id, title: item.title.trim(), project: item.project.trim(), scheduledDate: item.scheduledDate, position: item.position, estimatedSessions: item.estimatedSessions, focusMinutes: item.focusMinutes, kind: item.kind, completedAt: item.completedAt };
+    return { id: item.id, title: item.title.trim(), ...(item.requirements?.trim() ? { requirements: item.requirements.trim() } : {}), project: item.project.trim(), scheduledDate: item.scheduledDate, position: item.position, estimatedSessions: item.estimatedSessions, focusMinutes: item.focusMinutes, kind: item.kind, completedAt: item.completedAt };
   });
 }
 export async function getQueue(): Promise<DailyQueueItem[]> {

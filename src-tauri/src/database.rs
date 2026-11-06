@@ -429,6 +429,8 @@ pub struct DailyQueueItem {
     id: String,
     scheduled_date: String,
     title: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    requirements: String,
     project: String,
     position: i64,
     estimated_sessions: i64,
@@ -450,6 +452,8 @@ fn validate_queue(items: &[DailyQueueItem]) -> Result<(), String> {
             || item.title.trim().is_empty()
             || item.title.chars().count() > 500
             || item.title.contains('\0')
+            || item.requirements.encode_utf16().count() > 500
+            || item.requirements.contains('\0')
             || item.project.chars().count() > 200
             || item.project.contains('\0')
             || !(0..=5000).contains(&item.position)
@@ -491,9 +495,9 @@ async fn insert_queue_item(
     transaction: &mut Transaction<'_, Sqlite>,
     item: &DailyQueueItem,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("INSERT INTO daily_queue_items (id, scheduled_date, title, project, position, estimated_sessions, focus_minutes, kind, completed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")
+    sqlx::query("INSERT INTO daily_queue_items (id, scheduled_date, title, project, position, estimated_sessions, focus_minutes, kind, completed_at, requirements) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)")
             .bind(&item.id).bind(&item.scheduled_date).bind(item.title.trim()).bind(item.project.trim())
-            .bind(item.position).bind(item.estimated_sessions).bind(item.focus_minutes).bind(&item.kind).bind(&item.completed_at)
+            .bind(item.position).bind(item.estimated_sessions).bind(item.focus_minutes).bind(&item.kind).bind(&item.completed_at).bind(item.requirements.trim())
             .execute(&mut **transaction).await?;
     Ok(())
 }
@@ -513,6 +517,7 @@ pub async fn get_task_queue(
             id: row.get("id"),
             scheduled_date: row.get("scheduled_date"),
             title: row.get("title"),
+            requirements: row.get("requirements"),
             project: row.get("project"),
             position: row.get("position"),
             estimated_sessions: row.get("estimated_sessions"),
@@ -549,6 +554,7 @@ mod queue_tests {
             id: "queue-a".into(),
             scheduled_date: "2026-09-12".into(),
             title: "Task".into(),
+            requirements: String::new(),
             project: "DeepHUD".into(),
             position: 0,
             estimated_sessions: 3,
@@ -855,6 +861,7 @@ mod capture_tests {
             id: id.into(),
             scheduled_date: "2026-09-12".into(),
             title: "Email".into(),
+            requirements: String::new(),
             project: "Personal".into(),
             position: 5000,
             estimated_sessions: 2,
@@ -992,7 +999,7 @@ mod deletion_tests {
         sqlx::raw_sql("INSERT INTO sessions (started_at, ended_at, planned_minutes, focus_seconds, paused_seconds, project, task, session_kind, queue_item_id) VALUES ('2026-09-01', '2026-09-01', 25, 1500, 0, 'Project', 'Task', 'deep-work', 'queue-a');
             INSERT INTO projects (id, name, created_at) VALUES (1, 'Project', '2026-09-01');
             INSERT INTO tasks (project_id, name, created_at) VALUES (1, 'Task', '2026-09-01');
-            INSERT INTO daily_queue_items VALUES ('queue-a', '2026-09-01', 'Task', 'Project', 0, 1, 25, 'deep-work', NULL);
+            INSERT INTO daily_queue_items (id, scheduled_date, title, project, position, estimated_sessions, focus_minutes, kind, completed_at) VALUES ('queue-a', '2026-09-01', 'Task', 'Project', 0, 1, 25, 'deep-work', NULL);
             INSERT INTO distraction_captures (id, text, created_at, converted_queue_item_id) VALUES ('thought-a', 'Thought', '2026-09-01', 'queue-a');
             INSERT INTO focus_schedules VALUES ('schedule-a', '{}');
             INSERT INTO schedule_occurrences VALUES ('reminder-a', 'schedule-a', '2026-09-01', 'pending', '{}');")
